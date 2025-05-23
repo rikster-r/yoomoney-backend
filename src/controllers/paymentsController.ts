@@ -8,10 +8,8 @@ let orderCount = 1;
 const instance = axios.create({
   baseURL: 'https://api.yookassa.ru/v3',
   auth: {
-    //username: process.env.SHOP_ID!,
-    //password: process.env.SECRET_KEY!,
-    username: '1092648',
-    password: 'test_YWI3tmIa8on7BVuEsbRBV3yrUbygfRedxve0EtL8Vmw',
+    username: process.env.SHOP_ID!,
+    password: process.env.SECRET_KEY!,
   },
   headers: {
     'Content-Type': 'application/json',
@@ -20,23 +18,34 @@ const instance = axios.create({
 
 export async function createPayment(req: Request, res: Response) {
   try {
-    const { userId, amount } = req.body;
+    const {
+      userId,
+      items,
+    }: {
+      // user id - строка
+      userId: string;
+      // items - массив объектов
+      // item.id, item.name, item.price - обязательные поля
+      items: { id: number; name: string; price: number }[];
+    } = req.body;
     const idempotenceKey = uuidv4(); // уникальный ключ для повторной отправки запроса
 
     if (!userId) {
       return res.status(400).json('Укажите айди пользователя');
     }
 
-    if (!amount) {
-      return res.status(400).json('Укажите сумму платежа');
+    if (!items || !items.length) {
+      return res.status(400).json('Укажите предметы оплаты');
     }
+
+    const amount = items.reduce((sum, item) => sum + item.price, 0).toFixed(2);
 
     // Создать платеж
     const response = await instance.post(
       '/payments',
       {
         amount: {
-          value: 2,
+          value: amount,
           currency: 'RUB',
         },
         capture: true,
@@ -48,6 +57,7 @@ export async function createPayment(req: Request, res: Response) {
         metadata: {
           user_id: userId,
           order_id: orderCount,
+          items: JSON.stringify(items),
         },
       },
       {
@@ -63,10 +73,16 @@ export async function createPayment(req: Request, res: Response) {
     }
 
     // Создать webhook для получения результата оплаты
-    // await instance.post('/webhooks', {
-    //   event: 'payment.succeeded',
-    //   url: `${req.get('Host')}/payment/confirm/webhook`,
-    // });
+    await Promise.all([
+      instance.post('/webhooks', {
+        event: 'payment.succeeded',
+        url: `${req.get('Host')}/payment/confirm/webhook`,
+      }),
+      instance.post('/webhooks', {
+        event: 'payment.cancelled',
+        url: `${req.get('Host')}/payment/confirm/webhook`,
+      }),
+    ]);
 
     orderCount++;
     return res.status(302).redirect(paymentLink);
@@ -82,14 +98,30 @@ export async function createPayment(req: Request, res: Response) {
 
 export async function confirmPayment(req: Request, res: Response) {
   try {
-    const { event } = req.body;
-    console.log(req.body);
+    const { event, object } = req.body;
 
-    if (event.type === 'payment.succeeded') {
-      res.status(200).json({ status: 'ok' });
+    if (event === 'payment.succeeded') {
+      res.status(200).json(object);
     } else {
-      res.status(200).json({ status: 'ignored' });
+      res.status(500).json(object);
     }
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error('Ошибка сервера при подтверждении платежа:', error.message);
+    } else {
+      console.error('Ошибка сервера при подвтверждении платежа:', error);
+    }
+    res.status(500).json({ error: 'Ошибка сервера при подтверждении платежа' });
+  }
+}
+
+export async function getPaymentStatus(req: Request, res: Response) {
+  try {
+    const { paymentId } = req.params;
+
+    const response = await instance.get(`/payments/${paymentId}`);
+
+    return res.status(200).json(response.data);
   } catch (error) {
     if (error instanceof Error) {
       console.error('Ошибка сервера при подтверждении платежа:', error.message);
@@ -105,9 +137,13 @@ export async function getUserPayments(req: Request, res: Response) {
     const { userId } = req.params;
 
     const response = await instance.get('/payments?limit=100');
-    const data = response.data.items.filter(
-      (item: any) => item.metadata.user_id === userId
-    );
+    const data = response.data.items
+      // Оставить только платежи выбранного пользователя
+      .filter((item: any) => item.metadata.user_id === userId)
+      // Спарсить данные оплаченных предметов обратно в массив
+      .map(
+        (item: any) => (item.metadata.items = JSON.parse(item.metadata.items))
+      );
 
     return res.status(200).json(data);
   } catch (error) {
