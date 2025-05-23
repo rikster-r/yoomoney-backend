@@ -1,5 +1,5 @@
 {
-  "name": "frameflow-backend",
+  "name": "yoomoney-backend",
   "version": "0.0.0",
   "private": true,
   "main": "./src/index.ts",

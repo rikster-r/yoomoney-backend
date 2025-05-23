@@ -8,8 +8,10 @@ let orderCount = 1;
 const instance = axios.create({
   baseURL: 'https://api.yookassa.ru/v3',
   auth: {
-    username: process.env.SHOP_ID!,
-    password: process.env.SECRET_KEY!,
+    //username: process.env.SHOP_ID!,
+    //password: process.env.SECRET_KEY!,
+    username: '1092648',
+    password: 'test_YWI3tmIa8on7BVuEsbRBV3yrUbygfRedxve0EtL8Vmw',
   },
   headers: {
     'Content-Type': 'application/json',
