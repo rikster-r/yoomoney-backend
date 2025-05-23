@@ -2,16 +2,18 @@ import { type Request, type Response } from 'express';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
-let orderCount = 1;
+function generateOrderNumber() {
+  const now = Date.now(); // timestamp
+  const random = Math.floor(Math.random() * 1000); // 000–999
+  return `${now}-${random}`;
+}
 
 // testing
 const instance = axios.create({
   baseURL: 'https://api.yookassa.ru/v3',
   auth: {
-    //username: process.env.SHOP_ID!,
-    //password: process.env.SECRET_KEY!,
-    username: '1092648',
-    password: 'test_YWI3tmIa8on7BVuEsbRBV3yrUbygfRedxve0EtL8Vmw',
+    username: process.env.SHOP_ID!,
+    password: process.env.SECRET_KEY!,
   },
   headers: {
     'Content-Type': 'application/json',
@@ -55,10 +57,9 @@ export async function createPayment(req: Request, res: Response) {
           type: 'redirect',
           return_url: 'https://project4462332.tilda.ws',
         },
-        description: `Заказ для аккаунта ${userId}`,
+        description: `Заказ №${generateOrderNumber}`,
         metadata: {
           user_id: userId,
-          order_id: orderCount,
           items: JSON.stringify(items),
         },
       },
@@ -74,7 +75,6 @@ export async function createPayment(req: Request, res: Response) {
       return res.status(500).json({ error: 'Не удалось создать платеж' });
     }
 
-    orderCount++;
     return res.status(200).json({
       paymentId: response.data.id,
       redirectUrl: paymentLink,
