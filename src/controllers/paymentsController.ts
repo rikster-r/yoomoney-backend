@@ -55,7 +55,7 @@ export async function createPayment(req: Request, res: Response) {
           type: 'redirect',
           return_url: 'https://project4462332.tilda.ws',
         },
-        description: `Заказ #${orderCount}`,
+        description: `Заказ для аккаунта ${userId}`,
         metadata: {
           user_id: userId,
           order_id: orderCount,
@@ -75,7 +75,10 @@ export async function createPayment(req: Request, res: Response) {
     }
 
     orderCount++;
-    return res.status(302).redirect(paymentLink);
+    return res.status(200).json({
+      paymentId: response.data.id,
+      redirectUrl: paymentLink,
+    });
   } catch (error) {
     if (error instanceof Error) {
       console.error('Ошибка сервера при создании платежа:', error);
