@@ -74,18 +74,6 @@ export async function createPayment(req: Request, res: Response) {
       return res.status(500).json({ error: 'Не удалось создать платеж' });
     }
 
-    // Создать webhook для получения результата оплаты
-    await Promise.all([
-      instance.post('/webhooks', {
-        event: 'payment.succeeded',
-        url: `${req.get('Host')}/payment/confirm/webhook`,
-      }),
-      instance.post('/webhooks', {
-        event: 'payment.cancelled',
-        url: `${req.get('Host')}/payment/confirm/webhook`,
-      }),
-    ]);
-
     orderCount++;
     return res.status(302).redirect(paymentLink);
   } catch (error) {
@@ -98,32 +86,16 @@ export async function createPayment(req: Request, res: Response) {
   }
 }
 
-export async function confirmPayment(req: Request, res: Response) {
-  try {
-    const { event, object } = req.body;
-
-    if (event === 'payment.succeeded') {
-      res.status(200).json(object);
-    } else {
-      res.status(500).json(object);
-    }
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error('Ошибка сервера при подтверждении платежа:', error.message);
-    } else {
-      console.error('Ошибка сервера при подвтверждении платежа:', error);
-    }
-    res.status(500).json({ error: 'Ошибка сервера при подтверждении платежа' });
-  }
-}
-
-export async function getPaymentStatus(req: Request, res: Response) {
+export async function getPaymentData(req: Request, res: Response) {
   try {
     const { paymentId } = req.params;
 
     const response = await instance.get(`/payments/${paymentId}`);
+    const payment = response.data;
 
-    return res.status(200).json(response.data);
+    payment.metadata.items = JSON.parse(payment.metadata.items);
+
+    return res.status(200).json(payment);
   } catch (error) {
     if (error instanceof Error) {
       console.error('Ошибка сервера при подтверждении платежа:', error.message);
