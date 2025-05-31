@@ -29,11 +29,11 @@ export async function createPayment(req: Request, res: Response) {
       // user id - строка
       userId: string;
       // items - массив объектов
-      // item.id, item.name, item.price - обязательные поля
-      items: { id: number; name: string; price: number }[];
+      // item.id, item.amount, item.name, item.price - обязательные поля
+      items: { id: number; amount: number; name: string; price: number }[];
     } = req.body;
     const idempotenceKey = uuidv4(); // уникальный ключ для повторной отправки запроса
-
+    console.log(userId, items)
     if (!userId) {
       return res.status(400).json('Укажите айди пользователя');
     }
@@ -42,7 +42,8 @@ export async function createPayment(req: Request, res: Response) {
       return res.status(400).json('Укажите предметы оплаты');
     }
 
-    const amount = items.reduce((sum, item) => sum + item.price, 0).toFixed(2);
+    const amount = items.reduce((sum, item) => sum + Number(item.price), 0).toFixed(2);
+    const orderNumber = generateOrderNumber();
 
     // Создать платеж
     const response = await instance.post(
@@ -57,7 +58,7 @@ export async function createPayment(req: Request, res: Response) {
           type: 'redirect',
           return_url: 'https://project4462332.tilda.ws',
         },
-        description: `Заказ №${generateOrderNumber}`,
+        description: `Заказ  №${orderNumber}`,
         metadata: {
           user_id: userId,
           items: JSON.stringify(items),

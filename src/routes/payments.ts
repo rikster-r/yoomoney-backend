@@ -11,4 +11,7 @@ router.get('/payments/user/:userId', paymentsController.getUserPayments);
 // Получить информацию об оплате - подходит для запросов о статусе оплаты
 router.get('/payments/:paymentId', paymentsController.getPaymentData);
 
+// Webhook tilda
+router.post('/', (req, res) => {return res.status(200).json({success: true})})
+
 export default router;
